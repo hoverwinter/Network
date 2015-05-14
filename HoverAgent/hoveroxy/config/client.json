@@ -1,0 +1,8 @@
+{
+	"server":"45.55.142.141",
+	"server_port":2015,
+	"username":"carpela",
+	"password":"123456",
+	"local":"127.0.0.1",
+	"local_port":8888
+}

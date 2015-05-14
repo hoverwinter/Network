@@ -1,11 +1,14 @@
-
+#!/usr/bin/env python
 #-*- coding: UTF-8 -*-
 import socket,select
 import sys
 import thread
 from multiprocessing import Process
+import re
+import json
+config = None
 
-class Proxy:
+class ProxyServer:
     def __init__(self,soc):
         self.client,_=soc.accept()
         self.target=None
@@ -44,7 +47,30 @@ class Proxy:
     def connectMethod(self,request): #对于CONNECT处理可以添加在这里
         pass
 
+    def auth(self):
+    	inputs=[self.client]
+        readable,writeable,errs=select.select(inputs,[],inputs,3)
+        for soc in readable:
+            data=soc.recv(self.BUFSIZE)
+            info = re.split('\s+',data.strip())
+            print info[0]
+            for users in config['users']:
+            	if users['username']  == info[0] and info[1] == users['password']:
+            		return True
+        return False
+
+    def filter(self):
+    	pass
+
     def run(self):
+    	res =  self.auth()
+        if not res:
+            self.client.send('failure')
+            self.client.close()
+            return
+        else:
+        	self.client.send('success')
+
         request=self.getClientRequest()
         if request:
             if self.method in ['GET','POST','PUT',"DELETE",'HAVE']:
@@ -82,15 +108,21 @@ class Proxy:
             port=80
         return site,port
 
-if __name__=='__main__':      
-    host = '127.0.0.1' 
-    port = 8888
-    backlog = 5 
+def main():
+    global config 
+    f = open("config/server.json") 
+    config = json.load(f)
+    f.close()  
+    host = config['server']
+    port = config['port']
     server = socket.socket(socket.AF_INET,socket.SOCK_STREAM) 
     server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
     server.bind((host,port)) 
     server.listen(10) 
     while True:
-        thread.start_new_thread(Proxy(server).run,())
+        thread.start_new_thread(ProxyServer(server).run,())
         # p=Process(target=Proxy(server).run, args=()) #多进程
         # p.start()
+
+if __name__=='__main__': 
+    main()

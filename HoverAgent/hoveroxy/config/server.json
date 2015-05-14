@@ -1,0 +1,18 @@
+{
+	"users":[{
+		"username":"carpela",
+		"password":"123456",
+		"mode":1,
+		"allowd":[],
+		"forbidden":[]
+	},{
+		"username":"root",
+		"password":"root",
+		"mode":1,
+		"allowd":[],
+		"forbidden":[]
+	}],
+	"server":"127.0.0.1",
+	"port":8388
+
+}
