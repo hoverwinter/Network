@@ -4,13 +4,13 @@
 		"password":"123456",
 		"mode":1,
 		"allowd":[],
-		"forbidden":[]
+		"forbid":[]
 	},{
 		"username":"root",
 		"password":"root",
 		"mode":1,
-		"allowd":[],
-		"forbidden":[]
+		"allow":[],
+		"forbid":[]
 	}],
 	"server":"127.0.0.1",
 	"port":2015

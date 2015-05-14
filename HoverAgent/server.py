@@ -42,7 +42,21 @@ class Proxy:
         self.nonblocking()
 
     def connectMethod(self,request): #对于CONNECT处理可以添加在这里
-        pass
+        targetAddr=self.getTargetInfo(self.targetHost)
+        try:
+            (fam,_,_,_,addr)=socket.getaddrinfo(targetAddr[0],targetAddr[1])[0]
+        except Exception as e:
+            print e
+            return
+        self.target=socket.socket(fam)
+        self.target.connect(addr)
+
+        self.client.send(b"HTTP/1.1 200 Connection Established\r\nConnection: close\r\n\r\n")
+
+        request = self.client.recv(self.BUFSIZE)
+        
+        self.target.send(request)
+        self.nonblocking()
 
     def run(self):
         request=self.getClientRequest()
