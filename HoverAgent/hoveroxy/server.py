@@ -69,12 +69,38 @@ class ProxyServer:
             info = re.split('\s+',data.strip())
             print info[0]
             for users in config['users']:
-            	if users['username']  == info[0] and info[1] == users['password']:
-            		return True
+                if users['username']  == info[0] and info[1] == users['password']:
+                    if users['mode'] == 1:
+                        self.mode = 1
+                        self.rules = users['allow']
+                    elif users['mode'] == 0:
+                        self.mode = 0
+                        self.rules = users['forbid']
+                    else:
+                        self.mode = 2
+                        self.rules = None
+                    return True
         return False
 
-    def filter(self):
-    	pass
+    def filter(self,request):
+        print 'FILTER:','[ALLOW]' if self.mode==1 else '[FORBID]',self.rules,self.targetHost
+        for item in self.rules:
+            if self.mode == 0:
+                if re.findall(item,self.targetHost):
+                    print "No right to access!"
+                    return True
+                else:
+                    return False
+            if self.mode == 1:
+                if re.findall(item,self.targetHost):
+                    return False
+                else:
+                    print "No right to access!"
+                    return True
+        if self.mode == 0:
+            return False
+        if self.mode == 1:
+            return True
 
     def run(self):
     	res =  self.auth()
@@ -87,7 +113,10 @@ class ProxyServer:
 
         request=self.getClientRequest()
         if request:
-            if self.method in ['GET','POST','PUT',"DELETE",'HAVE']:
+            if self.mode == 1:
+                if self.filter(request):
+                    return
+            if self.method in ['GET','POST','PUT','DELETE','HAVE']:
                 self.commonMethod(request)
             elif self.method=='CONNECT':
                 self.connectMethod(request)

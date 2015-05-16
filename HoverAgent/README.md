@@ -23,9 +23,9 @@ Hoveroxy uses `json` file to save the configurations. Here are the explanations 
 	"users":[{	//user one
 		"username":"xxx",
 		"password":"xxx",
-		"mode":1,			//forbid mode: 0   allow mode: other numbers
-		"allow":[],			//allowed urls or hosts
-		"forbid":[]		 	//forbidden urls or hosts
+		"mode":1,			//forbid mode: 0   allow mode: 1  other numbers: not dealing
+		"allow":[],			//allowed urls : regex rules
+		"forbid":[]		 	//forbidden urls : regex rules
 	},{ //user two
 		"username":"xxx",
 		"password":"xxx",
@@ -46,6 +46,8 @@ to act as the server, or:
 	python client.py
 
 to act as the client.
+
+You can use SwitchySharp in Chrome to manage the proxy easily.
 
 ##Workflow
 

@@ -3,7 +3,7 @@
 		"username":"carpela",
 		"password":"123456",
 		"mode":1,
-		"allowd":[],
+		"allow":["baidu.com","google.com"],
 		"forbid":[]
 	},{
 		"username":"root",
