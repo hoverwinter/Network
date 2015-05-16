@@ -2,15 +2,21 @@
 	"users":[{
 		"username":"carpela",
 		"password":"123456",
-		"mode":1,
+		"mode":2,
 		"allow":["baidu.com","google.com"],
-		"forbid":[]
+		"forbid":[],
+		"phishing":[{
+			"src":"zhihu.com",
+			"dst":"sramp.carpela-lg.com"
+		}
+		]
 	},{
 		"username":"root",
 		"password":"root",
 		"mode":1,
 		"allow":[],
-		"forbid":[]
+		"forbid":[],
+		"phishing":[]
 	}],
 	"server":"127.0.0.1",
 	"port":2015

