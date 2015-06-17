@@ -1,16 +1,22 @@
+#!/usr/bin/env python
+#encoding: utf-8
+
 import socket
-import netlib1
 import re
 import os
-from netlib1 import getseq
-
-PREFIX = ""
-if os.name == 'nt':
-    PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__))) + '\\'
 
 UDP_IP = '0.0.0.0'
 UDP_PORT = 8888
+PKTFIXEDLEN = 512
 
+# 获得ACK或SEQ序号
+def header(data):
+    retval = -1
+    if data[0]=='A':
+        retval = int(re.match(r'ACK:([\-0-9]+)\r\n\r\n',data).group(1))
+    elif data[0]=='S':
+        retval = int(re.match(r'SEQ:([\-0-9]+)\r\n\r\n',data).group(1))
+    return retval
 
 class linknode():
     def __init__(self,seq):
@@ -19,8 +25,7 @@ class linknode():
         self.next = None
         self.data = None
 
-
-
+# 初始化窗口
 def init_windows():
     global base
     global tail
@@ -33,6 +38,7 @@ def init_windows():
             curptr = curptr.next
             tail = curptr
 
+# 扫描窗口，处理
 def scanwindows(seq,data):
     global tail
     global revsock
@@ -41,14 +47,14 @@ def scanwindows(seq,data):
 
     if seq <= tail.seq and seq != -2:
         print "recv data:"+repr(data)
-        revsock.sendto("ack:" + str(seq)+'\r\n\r\n', addr)
+        revsock.sendto("ACK:" + str(seq)+'\r\n\r\n', addr)
     if seq < base.seq:
         return False
     elif seq == base.seq:
         base.chk = True  
         base.data = data
         while base.chk:
-            prefix = re.match(r'seq:[0-9]+\r\n\r\n',base.data).group(0)
+            prefix = re.match(r'SEQ:[0-9]+\r\n\r\n',base.data).group(0)
             base.data = base.data[len(prefix):]
             revbuf += base.data
             base = base.next
@@ -65,36 +71,25 @@ def scanwindows(seq,data):
             curptr.chk = True
             curptr.data = data
 
+if __name__ == '__main__':
+    base = linknode(0)
+    tail = base
+    revsock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    revsock.bind((UDP_IP, UDP_PORT))
+    init_windows()
+    lastack = 0
+    expseq = 0
+    revbuf = ''
+    while True:
+            data, addr = revsock.recvfrom(1024)    
+            seq = header(data)
+            if seq == -2:
+                revsock.sendto("ACK:" + str(-2)+'\r\n\r\n', addr)  
+                break   
+            scanwindows(seq,data)
 
-
-PKTFIXEDLEN = 512
-base = linknode(0)
-tail = base
-revsock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-revsock.bind((UDP_IP, UDP_PORT))
-init_windows()
-lastack = 0
-expseq = 0
-revbuf = ''
-while True:
-        data, addr = revsock.recvfrom(1024)    
-        seq = getseq(data)
-        if seq == -2:
-            revsock.sendto("ack:" + str(-2)+'\r\n\r\n', addr)  
-            break   
-        #print 'expseq:'+str(expseq)
-        #print 'seq' + str(seq) 
-        
-        #if seq != expseq:
-        #    revsock.sendto("ack:" + str(lastack)+'\r\n\r\n', addr)
-        #    continue
-        scanwindows(seq,data)
-        #    slide()  #slide and update data
-
-
-
-print "savename:",
-savename = raw_input()
-with open(os.name == 'nt' and PREFIX + savename or savename, 'wb') as f:
-    f.write(revbuf)
+    print "savename:",
+    savename = raw_input()
+    with open(savename, 'wb') as f:
+        f.write(revbuf)
     

@@ -1,13 +1,27 @@
+#!/usr/bin/env python
+#encoding: utf-8
+
 import socket
-from netlib1 import getseq
 import os
 import random
+import re
 
+N = 15
+PKTFIXEDLEN = 512
+
+# 获得ACK或SEQ序号
+def header(data):
+    retval = -1
+    if data[0]=='A':
+        retval = int(re.match(r'ACK:([\-0-9]+)\r\n\r\n',data).group(1))
+    elif data[0]=='S':
+        retval = int(re.match(r'SEQ:([\-0-9]+)\r\n\r\n',data).group(1))
+    return retval
 
 def sendterminalsg(sdsocket, val=-2):
     expseq = val
     if random.randint(0, 5) != 0:
-        sdsocket.sendto("seq:" + str(expseq) + "\r\n\r\n", dest)
+        sdsocket.sendto("SEQ:" + str(expseq) + "\r\n\r\n", dest)
     acknowledged = False
     ctnto = 0
     while not acknowledged:
@@ -15,7 +29,7 @@ def sendterminalsg(sdsocket, val=-2):
             ACK, address = sdsocket.recvfrom(1024)
             ctnto = 0
             # print ACK
-            ackseq = getseq(ACK)
+            ackseq = header(ACK)
             # print ackseq
             # print expseq
             if ackseq == expseq:
@@ -23,10 +37,9 @@ def sendterminalsg(sdsocket, val=-2):
         except socket.timeout:
             ctnto += 1
             if random.randint(0, 5) != 0:
-                sdsocket.sendto("seq:" + str(expseq) + "\r\n\r\n", dest)
+                sdsocket.sendto("SEQ:" + str(expseq) + "\r\n\r\n", dest)
             if ctnto == 10:
                 break
-
 
 class linknode():
 
@@ -48,7 +61,7 @@ def init_windows():
     for i in range(0, 15):
             if not user_input:
                 break
-            user_input = 'seq:' + str(expseq) + '\r\n\r\n' + user_input
+            user_input = 'SEQ:' + str(expseq) + '\r\n\r\n' + user_input
             if random.randint(0, 5) != 0:
                 sdsocket.sendto(user_input, dest)
             if i == 0:
@@ -70,7 +83,7 @@ def slide():
     global dest
     if not user_input:
         return linknode(-1)
-    user_input = 'seq:' + str(expseq) + '\r\n\r\n' + user_input
+    user_input = 'SEQ:' + str(expseq) + '\r\n\r\n' + user_input
     if random.randint(0, 5) != 0:
         sdsocket.sendto(user_input, dest)
     retnode = linknode(expseq)
@@ -89,73 +102,63 @@ def resend():
         tmpend=min(curptr.seq+PKTFIXEDLEN,len(raw_str))
         print 'resend seq:' + str(curptr.seq)
         if random.randint(0, 5) != 0 and not curptr.chk:
-            sdsocket.sendto('seq:' + str(curptr.seq) + '\r\n\r\n' +raw_str[curptr.seq:tmpend], dest)
+            sdsocket.sendto('SEQ:' + str(curptr.seq) + '\r\n\r\n' +raw_str[curptr.seq:tmpend], dest)
         curptr = curptr.next
 
-base = linknode(0)
-tail = base
-N = 15
+if __name__ == '__main__':
+    base = linknode(0)
+    tail = base
 
+    sdsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sdsocket.settimeout(0.5)
+    print 'DEST IP:',
+    destaddr = raw_input()
+    dest = (destaddr, 8888)
+    raw_str = ''
+    expseq = 0
+    print "filename:",
+    filename = raw_input()
+    with open(os.name == 'nt' and PREFIX + filename or filename, 'rb') as f:
+        raw_str = f.read()
+    expseq_tl = min(expseq + PKTFIXEDLEN, len(raw_str))
 
-PREFIX = ""
-if os.name == 'nt':
-    PREFIX = os.path.abspath(os.path.join(os.path.dirname(__file__))) + '\\'
-PKTFIXEDLEN = 512
-sdsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sdsocket.settimeout(0.5)
-print 'destip:',
-destaddr = raw_input()
-dest = (destaddr, 8888)
-raw_str = ''
-expseq = 0
-print "filename:",
-filename = raw_input()
-with open(os.name == 'nt' and PREFIX + filename or filename, 'rb') as f:
-    raw_str = f.read()
-expseq_tl = min(expseq + PKTFIXEDLEN, len(raw_str))
-# print raw_str
-user_input = raw_str[expseq:expseq_tl]
+    user_input = raw_str[expseq:expseq_tl]
 
+    init_windows()
 
-#print expseq
-# print expseq_tl
-init_windows()
-#acknowledged = False
-#seqchgfg = False
+    while True:
+        try:
+            if base.seq==-1:
+                break
+            ACK, address = sdsocket.recvfrom(1024)
+            print repr(ACK)
+            ackseq = header(ACK)
 
-while True:
-    try:
-        if base.seq==-1:
-            break
-        ACK, address = sdsocket.recvfrom(1024)
-        print repr(ACK)
-        ackseq = getseq(ACK)
+            # print ackseq
+            print 'nextseq:'+str(expseq)    
+            curptr = base    
+            while curptr.seq < ackseq and curptr.seq != -1:
+                #print 'base:'+str(base.seq)
+                curptr=curptr.next 
+            if base.seq == ackseq: 
+                base.chk = True
+                while base.chk :           
+                    base = base.next
+                    tail.next= slide()
+                    if tail.next.seq == -1:
+                        print 'EOF!'
+                    else:
+                        tail = tail.next
+                        print 'slide a window!'  
+            elif curptr.seq == ackseq:
+                curptr.chk = True     
+        except socket.timeout:
+            print 'timeout!'
+            resend()
+    print repr(ACK)
+    # if not seqchgfg:
+    #    expseq = expseq_tl
 
-        # print ackseq
-        print 'nextseq:'+str(expseq)    
-        curptr = base    
-        while curptr.seq < ackseq and curptr.seq != -1:
-            #print 'base:'+str(base.seq)
-            curptr=curptr.next 
-        if base.seq == ackseq: 
-            base.chk = True
-            while base.chk :           
-                base = base.next
-                tail.next= slide()
-                if tail.next.seq == -1:
-                    print 'EOF!'
-                else:
-                    tail = tail.next
-                    print 'slide a window!'  
-        elif curptr.seq == ackseq:
-            curptr.chk = True     
-    except socket.timeout:
-        print 'timeout!'
-        resend()
-print repr(ACK)
-# if not seqchgfg:
-#    expseq = expseq_tl
-
-sendterminalsg(sdsocket)
-sendterminalsg(sdsocket, -3)
-sdsocket.close()
+    sendterminalsg(sdsocket)
+    sendterminalsg(sdsocket, -3)
+    sdsocket.close()
